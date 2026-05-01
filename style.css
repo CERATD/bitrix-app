@@ -1,0 +1,15 @@
+body {
+  font-family: Arial;
+  padding: 10px;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+select, button {
+  padding: 8px;
+  font-size: 14px;
+}
