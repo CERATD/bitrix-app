@@ -5,5 +5,3 @@ COPY . /var/www/html/
 RUN docker-php-ext-install curl
 
 EXPOSE 80
-
-webhook_handler.php
