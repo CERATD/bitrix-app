@@ -1,1 +1,72 @@
-<?php // webhook_handler.php – ваш обработчик $input = file_get_contents('php://input'); $data = json_decode($input, true); // Получаем ID сделки и новые значения полей $dealId = $data['data']['FIELDS']['ID'] ?? null; $brand = $data['data']['FIELDS']['UF_CRM_BRAND'] ?? null; // замените UF_CRM_BRAND на ваш код поля "Марка машины" $model = $data['data']['FIELDS']['UF_CRM_MODEL'] ?? null; // код поля "Модель машины" if (!$dealId || !$brand) { // ничего не делаем, если нет нужных данных exit; } // Список допустимых моделей для каждой марки $map = [ 'BMW' => ['X5', 'X3', '3‑Series'], 'Audi' => ['A4', 'Q5', 'A6'], 'Mercedes'=> ['C‑Class', 'E‑Class', 'GLA'], ]; $allowedModels = $map[$brand] ?? []; // Если текущая модель не входит в список – очистим поле (или зададим первую допустимую) if (!in_array($model, $allowedModels, true)) { // Выбираем первую модель из списка, чтобы не оставлять пустое значение $newModel = $allowedModels[0] ?? ''; // Формируем запрос к REST‑API Bitrix24 $webhookUrl = 'https://yourdomain.bitrix24.ru/rest/1/abcdefg/crm.deal.update'; $params = [ 'id' => $dealId, 'fields' => [ 'UF_CRM_MODEL' => $newModel, ], ]; $ch = curl_init(); curl_setopt($ch, CURLOPT_URL, $webhookUrl); curl_setopt($ch, CURLOPT_POST, 1); curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params)); curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); curl_exec($ch); curl_close($ch); } ?>
+<?php
+
+// ===== 1. Получаем входящие данные =====
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
+
+// Логируем вход (для отладки)
+file_put_contents(__DIR__ . '/log.txt', date('c') . "\n" . $input . "\n\n", FILE_APPEND);
+
+// ===== 2. Достаём нужные поля =====
+$dealId = $data['data']['FIELDS']['ID'] ?? null;
+$brand  = $data['data']['FIELDS']['UF_CRM_1777624909'] ?? null; // код поля "Марка"
+$model  = $data['data']['FIELDS']['UF_CRM_1777625516'] ?? null; // код поля "Модель"
+
+// ===== 3. Проверка =====
+if (!$dealId || !$brand) {
+    exit('No dealId or brand');
+}
+
+// ===== 4. Карта моделей =====
+$map = [
+    'BMW' => ['X5', 'X3', '3-Series'],
+    'Audi' => ['A4', 'Q5', 'A6'],
+    'Mercedes' => ['C-Class', 'E-Class', 'GLA'],
+];
+
+// ===== 5. Проверяем допустимые модели =====
+$allowedModels = $map[$brand] ?? [];
+
+if (empty($allowedModels)) {
+    exit('No models for brand');
+}
+
+// ===== 6. Если модель невалидна =====
+if (!in_array($model, $allowedModels, true)) {
+
+    // Берём первую модель из списка
+    $newModel = $allowedModels[0];
+
+    // ===== 7. Отправка в Bitrix =====
+    $webhookUrl = 'https://electropro.bitrix24.ru/rest/1/x3do1uj742y3myx9/crm.deal.update';
+
+    $params = [
+        'id' => $dealId,
+        'fields' => [
+            'UF_CRM_MODEL' => $newModel,
+        ],
+    ];
+
+    $ch = curl_init($webhookUrl);
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($params),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+    ]);
+
+    $response = curl_exec($ch);
+    $error    = curl_error($ch);
+
+    curl_close($ch);
+
+    // ===== 8. Лог результата =====
+    file_put_contents(
+        __DIR__ . '/log.txt',
+        "UPDATE RESPONSE:\n" . $response . "\nERROR:\n" . $error . "\n\n",
+        FILE_APPEND
+    );
+}
+
+echo 'OK';
